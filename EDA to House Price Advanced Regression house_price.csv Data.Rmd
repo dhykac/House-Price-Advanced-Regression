@@ -1,0 +1,196 @@
+---
+title: "EDA to House Price Advanced Regression house_price.csv Data"
+author: "Dhyka"
+date: "11/28/2021"
+output: html_document
+---
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggcorrplot)
+```
+
+```{r}
+dfori = read.csv('house_price.csv') # Sesuaikan dengan nama file house price di laptop masing-masing
+glimpse(dfori)
+```
+# 1. Start with the target
+Lakukan analisis univariat terhadap variabel target, yakni SalePrice dan deskripsikan apa saja insight yang bisa didapat.
+# Jawab :
+
+Pertama-tama, saya akan mencari profil dasar dari variabel SalePrice
+```{r}
+dfori %>% 
+  select(SalePrice) %>% 
+  summary()
+```
+Dari data diatas, kita bisa mendapat insight sebagai berikut :
+  Insight 1 : Harga rumah paling murah di Boston adalah 34900, sedangkan yang paling mahal 755000
+  Insight 2 : Rata-rata dari harga jual rumah yang ada di Boston adalah 180291
+  Insight 3 : Nilai tengah dari harga rumah di Boston adalah 163000
+  
+Setelah itu kita coba melihat apakah pada kolom SalePrice terdapat missing value
+```{r}
+dfori['SalePrice'] %>% is.na() %>% colSums()
+```
+Dari analisa diatas kita bisa mengambil insight :
+  Insight 4 : Dari data SalePrice tidak ditemukan missing value. Yang berarti data tersebut merupakan data rumah yang sudah dijual,
+  bukan sedang dijual ataupun merupakan prediksi harga jual.
+  
+Kemudian, kita coba memvisualkan data SalePrice kedalam bentuk histogram
+
+```{r}
+dfori %>% ggplot(aes(x=SalePrice)) + geom_histogram(bins=35) +
+  labs(title = "Distribution of SalePrice",
+       subtitle = "How the distribution of house selling price in Boston?",
+       caption = "source:kaggle",
+       x="Sale Price",
+       y="Count") +
+  theme(axis.text.x = element_text(vjust=0.6))
+```
+Dari visualisasi diatas, insight yang bisa diambil adalah :
+  Insight 5 : Distribusi dari data SalePrice mengalami skewed right,
+  hal ini dikarenakan harga rata-rata jual rumah (mean, 180921) lebih besar dari harga tengah (median.163000)
+
+
+
+# 2. Cari 5 variabel dengan korelasi paling kuat(secara positive ataupun negative) terhadap SalePrice, dan kira-kira apakah hasilnya masuk akal?
+# Jawab :
+
+Saya melakukan eksplorasi korelasi dengan menggunakan library(corrplot)
+```{r,fig.width=20}
+dfnum = dfori%>%
+  select_if(is.numeric)
+corr = round(cor(dfnum),1)
+ggcorrplot(corr, hc.order = FALSE, lab = TRUE)
+```
+Melalui eksplorasi tersebut kita bisa melihat angka korelasi SalePrice terhadap semua kolom, dimana :
+1. Angka korelasi 80% (0,8) terdapat di OverallQual
+   Menurut saya ini masuk akal, karena OverallQual adalah kualitas dari keseluruhan rumah sehingga akan       sangat mempengaruhi harga jual
+   
+2. Angka korelasi 70% (0,7) terdapat di GrLivArea
+   Menurut saya ini juga masuk akal, karena GrLivArea adalah area yang habitual (dapat ditinggali) dari       keseluruhan rumah. Hal ini menyebabkan semakin banyak area tinggal maka harga akan berpengaruh.. Akan      tetapi ada outlier di GrLivArea yang memerlukan analisis lebih lanjut.
+   
+3. Angka korelasi 60% (0,6) terdapat di GarageArea,GarageCars,FullBath,1stFlrSF,TotalBsmtSF
+   Untuk GarageArea, GarageCars, FullBath dan TotalBsmtSF masih masuk akal, karena empat variabel tersebut mempengaruhi area dari rumah, sehingga ketika tiga variabel naik otomatis luas rumah bertambah dan harga jual meningkat.
+   Kemudian variabel X1stFlrSF masih bisa diterima apabila rumah lain yang dijadikan sebagai acuan juga hanya memiliki satu lantai, tapi tidak jika rumah tersebut memiliki variabel 2ndBsmtSF. 
+
+# 3. It is never hurt to test basic knowledge.
+Ada pandangan bahwa OverallQual rendah memiliki kecenderungan harga yang lebih rendah, dan rumah dengan OverallQual tinggi memiliki kecenderungan harga yang lebih tinggi. Lakukan analisis terhaadp hubungan OverallQual dan SalePrice.
+# Jawab :
+
+Pertama saya akan membuat dataframe dengan hanya saleprice dan overallqual untuk mempermudah analisa
+```{r}
+dfqp = dfnum %>%
+  select(c("SalePrice","OverallQual"))
+```
+Kemudian saya akan membuat analisa boxplot. Saya memilih boxplot dikarenakan data tersebut merupakan category (OverallQual) dan Continuous (SalePrice)
+```{r}
+dfqp %>%
+  ggplot(aes(x=OverallQual,y=SalePrice,group=OverallQual)) +
+  geom_boxplot()
+```
+Berdasarkan analisa boxplot diatas, dapat disimpulkan bahwa benar OverallQual yang tinggi cenderung membuat SalePrice semakin tinggi.
+Namun, terdapat outlier bawah pada kategori 3-8 dan 10 kemudian outlier atas pada kategori 4-10.
+Hal ini patut untuk dianalisa lebih lanjut karena berarti ada faktor-faktor tertentu yang juga ikut mempengaruhi SalePrice.
+
+
+
+# 4. Beware of false correlation
+Ada kecenderungan bahwa rumah baru memiliki harga yang lebih tinggi. Akan tetapi, kita tidak boleh gegabah untuk menyimpulkan bahwa rumah baru pasti memiliki harga jual yang lebih tinggi, karena apabila rumah baru yang dibangun tidak baik, tentu harganya juga tidak bisa tinggi. Kira-kira apa hal yang membuat rumah baru memiliki nilai yang lebih tinggi?
+# Hint : Cek korelasi antara YearBuilt dengan prediktor lainnya
+# Jawab :
+
+Pada data correlation nomor 2 sebelumnya, kita bisa melihat berbagai correlation YearBuilt terhadap predictor lainnya. Penyebab dari kenapa rumah baru memiliki harga yang tinggi adalah karena kualitas material dan penyelesaian rumah (OverallQual) memiliki korelasi positive dengan YearBuilt, dan OverallQual memiliki korelasi positive yang tinggi terhadap harga jual (SalePrice). Namun, YearBuilt memiliki korelasi negative dengan OverallCond, dimana semakin tinggi YearBuilt maka OverallCond akan semakin turun. Dimana variabel OverallCond juga memiliki korelasi negative dengan SalePrice, tapi tidak berpengaruh banyak karena hanya -1.
+
+Untuk mempermudah analisa saya akan membuat dataframe dengan berisi hanya YearBuilt,OverallCond,OverallQual,SalePrice.
+```{r}
+dfyb = dfnum %>%
+  select(c('YearBuilt','OverallCond','OverallQual','SalePrice'))
+```
+Sekarang, mari kita check pengaruh OverallQual terhadap SalePrice. Dengan timeframe 5 tahun terakhir (asumsi saya untuk rumah baru)
+```{r}
+dfyb %>%
+  filter(YearBuilt>2000) %>%
+  ggplot(aes(YearBuilt,OverallQual)) +
+  geom_count() 
+```
+```{r}
+dfyb %>%
+  filter(YearBuilt>2000) %>%
+  ggplot(aes(OverallQual,SalePrice,group=OverallQual)) +
+  geom_boxplot() 
+```
+Kemudian sekarang bandingkan dengan OverallCond terhadap SalePrice, dengan timeframe yang sama.
+```{r}
+dfyb %>%
+  filter(YearBuilt>2000) %>%
+  ggplot(aes(YearBuilt,OverallCond)) +
+  geom_count() 
+```
+```{r}
+dfyb %>%
+  filter(YearBuilt>2000) %>%
+  ggplot(aes(OverallCond,SalePrice,group=OverallCond)) +
+  geom_boxplot() 
+```
+Berdasarkan boxplot, yang menyebabkan harga rumah baru (SalePrice) meningkat adalah pada korelasinya terhadap OverallQual (kualitas material dan penyelesaian rumah). Dimana rumah-rumah yang dibangun tahun 2001-2010 memiliki peningkatan (dalam value maupun jumlah). Disisi lain kondisi rumah (OverallCond) pada tahun yang sama mengalami stuck pada angka 5 & 6, bahkan penurunan kualitas kondisi rumah mengalami penurunan signifikan pada tahun 2010 (hanya 2).
+
+Jadi kesimpulan saya, memang benar harga rumah baru (SalePrice) lebih tinggi dikarenakan kualitas material dan penyelesaian rumah(OverallQual) dilihat dari korelasi positif 0,8, namun kondisi rumah baru(OverallCond) stuck, bahkan cenderung menurun dilihat dari korelasi negatif 0,1. 
+
+
+
+# 5. Haunted place(?)
+Perhatikan scatter plot berikut
+```{r}
+dfori %>% ggplot(aes(x=GrLivArea,y=SalePrice)) + geom_point()
+```
+Disebelah kanan, ada dua rumah, yang memiliki GreenLivingArea sangat besar, tetapi SalePrice nya murah. Coba analisis kenapa kedua rumah tersebut murah
+# Jawab :
+
+Pertama, saya akan melakukan filter untuk men-zoom in data yang merupakan dua outlier tersebut. Berdasarkan pengamatan dari scatterplot , dapat dilihat bahwa outlier tersebut merupakan GrLivArea dengan besar lebih dari 4500
+```{r}
+dfori %>%
+  filter(GrLivArea>4500)
+```
+
+Untuk soal ini, saya punya beberapa spekulasi :
+    1. Karena landcontour.
+```{r}
+dfori %>%
+  ggplot(aes(LandContour,SalePrice,group=LandContour)) +
+  geom_boxplot() 
+```
+Berdasarkan analisa boxplot terhadap landcondtour, dapat dilihat bahwa landcountour tipe Bnk memiliki SalePrice yang lebih rendah dari LandContour tipe lain, hal ini diakibatkan karena landcontour struktur tanah yang memiliki kenaikan cepat (dari jalan ke bangunan terlalu curam) sehingga akses keluar dari rumah agak berbahaya. 
+
+    2. Karena bangunan belum selesai pembangunan/remodelling
+```{r}
+dfori %>%
+  ggplot(aes(SaleCondition,SalePrice,group=SaleCondition)) +
+  geom_boxplot() 
+```
+Kemungkinan selanjutnya adalah karena rumah tersebut belum selesai dibangun. Bisa dilihat dari SaleCondition nya adalah Partial (rumah dijual sebelum pembangunan selesai). Kita juga bisa melihat ini dari YearBuilt dan YearRemodAdd. Dimana rumah dengan GrLivArea 4672 memiliki YearBuilt 2007, YearRemodAdd 2008, dan YrSold 2007 yang berarti rumah tersebut dijual ketika sedang dijadwalkan renovasi pada tahun selanjutnya. Dan GrLivArea 5642 mempunyai YearBuilt, YearRemodAdd, YrSold 2007 yang berarti rumah tersebut dijual pada tahun yang sama dengan saat dibangun atau saat sedang dilakukan renovasi. Namun hal ini masih terbantahkan apabila melihat boxplot, dimana Partial sale masih memiliki nilai yang tinggi dibanding yang lain.
+
+3. Great Recession 2007-2009
+https://en.wikipedia.org/wiki/Great_Recession#Housing_bubbles
+Selanjutnya karena Great Recession, pada tahun 2007-2009 terjadi krisis yang diakibatkan oleh housing bubbles yang menyebabkan harga rumah tidak naik maupun turun pada tahun tersebut.
+
+# 6. Freestyle
+Lakukan EDA secara bebas dan sampaikan 1 insight yang sekiranya menarik.
+# Jawab:
+
+Menggunakan pendekatan yang sama dengan nomor 5, saya mencoba menganalisa pengaruh LotArea terhadap SalePrice
+```{r}
+dfori %>%
+  ggplot(aes(x=LotArea,y=SalePrice)) + geom_point()
+```
+Dari scatter plot, terlihat sangat jelas bahwa ada rumah dengan luas yang sangat besar (>200000sqf) namun harganya tidak naik secara signifikan (dilihat dari antara rumah luas 0-50000, ada yang harganya melambung tinggi). Setelah itu saya mencoba melakukan filter terhadap data tersebut.
+```{r}
+dfori %>%
+  filter(LotArea>200000)
+```
+Setelah menginvestigasi terhadap data saya menemukan insight yang cukup menarik menurut saya : 
+  1. Rumah tersebut memiliki area yang luas, tapi memiliki habitual place yang sangat kecil (hanya sekitar 2036)
+  2. Secara tidak langsung, rumah tersebut memberikan insight bahwa luas tanah property tidak akan mahal apabila tempat tersebut tidak memiliki habitual place yang sepadan (selaras dengan korelasi antara GrLivArea dan SalePrice)
+  
+#Thank you! :)
