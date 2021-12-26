@@ -1,4 +1,4 @@
-# This directory is about how i do Data Visualization to house_price.csv of House Price Advanced Regression data.
+# This directory is about how i do Exploratory Data Analysis to house_price.csv of House Price Advanced Regression data.
 
 On this directory i doing exploratory data analysis to house_price.csv based on assignment day 14 data science bootcamp dibimbing.id
 
