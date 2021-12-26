@@ -1,4 +1,4 @@
-# Exploratory Data Analysis Telco Customer Churn
+# Exploratory Data Analysis House Price Advanced Regression
 
 In this directory i'm doing exploratory data analysis to house_price.csv.
 
